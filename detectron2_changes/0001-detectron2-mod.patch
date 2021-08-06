@@ -1,0 +1,372 @@
+diff --git a/detectron2/config/defaults.py b/detectron2/config/defaults.py
+index de010b8..097751f 100644
+--- a/detectron2/config/defaults.py
++++ b/detectron2/config/defaults.py
+@@ -1,5 +1,6 @@
+ # Copyright (c) Facebook, Inc. and its affiliates.
+ from .config import CfgNode as CN
++from utils.config import num_boxes
+ 
+ # -----------------------------------------------------------------------------
+ # Convention about Training / Test specific parameters
+@@ -41,22 +42,21 @@ _C.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675]
+ # Otherwise, you can use [57.375, 57.120, 58.395] (ImageNet std)
+ _C.MODEL.PIXEL_STD = [1.0, 1.0, 1.0]
+ 
+-
+ # -----------------------------------------------------------------------------
+ # INPUT
+ # -----------------------------------------------------------------------------
+ _C.INPUT = CN()
+ # Size of the smallest side of the image during training
+-_C.INPUT.MIN_SIZE_TRAIN = (800,)
++_C.INPUT.MIN_SIZE_TRAIN = (256,)
+ # Sample size of smallest side by choice or random selection from range give by
+ # INPUT.MIN_SIZE_TRAIN
+ _C.INPUT.MIN_SIZE_TRAIN_SAMPLING = "choice"
+ # Maximum size of the side of the image during training
+-_C.INPUT.MAX_SIZE_TRAIN = 1333
++_C.INPUT.MAX_SIZE_TRAIN = 400
+ # Size of the smallest side of the image during testing. Set to zero to disable resize in testing.
+-_C.INPUT.MIN_SIZE_TEST = 800
++_C.INPUT.MIN_SIZE_TEST = 256
+ # Maximum size of the side of the image during testing
+-_C.INPUT.MAX_SIZE_TEST = 1333
++_C.INPUT.MAX_SIZE_TEST = 400
+ # Mode for flipping images used in data augmentation during training
+ # choose one of ["horizontal, "vertical", "none"]
+ _C.INPUT.RANDOM_FLIP = "horizontal"
+@@ -69,7 +69,6 @@ _C.INPUT.CROP.TYPE = "relative_range"
+ # pixels if CROP.TYPE is "absolute"
+ _C.INPUT.CROP.SIZE = [0.9, 0.9]
+ 
+-
+ # Whether the model needs RGB, YUV, HSV etc.
+ # Should be one of the modes defined here, as we use PIL to read the image:
+ # https://pillow.readthedocs.io/en/stable/handbook/concepts.html#concept-modes
+@@ -80,12 +79,12 @@ _C.INPUT.FORMAT = "BGR"
+ # Mask R-CNN supports either "polygon" or "bitmask" as ground truth.
+ _C.INPUT.MASK_FORMAT = "polygon"  # alternative: "bitmask"
+ 
+-
+ # -----------------------------------------------------------------------------
+ # Dataset
+ # -----------------------------------------------------------------------------
+ _C.DATASETS = CN()
+ # List of the dataset names for training. Must be registered in DatasetCatalog
++# Samples from these datasets will be merged and used as one dataset.
+ _C.DATASETS.TRAIN = ()
+ # List of the pre-computed proposal files for training, which must be consistent
+ # with datasets listed in DATASETS.TRAIN.
+@@ -98,7 +97,7 @@ _C.DATASETS.TEST = ()
+ # with datasets listed in DATASETS.TEST.
+ _C.DATASETS.PROPOSAL_FILES_TEST = ()
+ # Number of top scoring precomputed proposals to keep for test
+-_C.DATASETS.PRECOMPUTED_PROPOSAL_TOPK_TEST = 1000
++_C.DATASETS.PRECOMPUTED_PROPOSAL_TOPK_TEST = 100
+ 
+ # -----------------------------------------------------------------------------
+ # DataLoader
+@@ -129,7 +128,6 @@ _C.MODEL.BACKBONE.NAME = "build_resnet_backbone"
+ # stages are each group of residual blocks.
+ _C.MODEL.BACKBONE.FREEZE_AT = 2
+ 
+-
+ # ---------------------------------------------------------------------------- #
+ # FPN options
+ # ---------------------------------------------------------------------------- #
+@@ -146,7 +144,6 @@ _C.MODEL.FPN.NORM = ""
+ # Types for fusing the FPN top-down and lateral features. Can be either "sum" or "avg"
+ _C.MODEL.FPN.FUSE_TYPE = "sum"
+ 
+-
+ # ---------------------------------------------------------------------------- #
+ # Proposal generator options
+ # ---------------------------------------------------------------------------- #
+@@ -157,7 +154,6 @@ _C.MODEL.PROPOSAL_GENERATOR.NAME = "RPN"
+ # (a the scale used during training or inference)
+ _C.MODEL.PROPOSAL_GENERATOR.MIN_SIZE = 0
+ 
+-
+ # ---------------------------------------------------------------------------- #
+ # Anchor generator options
+ # ---------------------------------------------------------------------------- #
+@@ -322,7 +318,6 @@ _C.MODEL.ROI_BOX_CASCADE_HEAD.BBOX_REG_WEIGHTS = (
+ )
+ _C.MODEL.ROI_BOX_CASCADE_HEAD.IOUS = (0.5, 0.6, 0.7)
+ 
+-
+ # ---------------------------------------------------------------------------- #
+ # Mask Head
+ # ---------------------------------------------------------------------------- #
+@@ -340,7 +335,6 @@ _C.MODEL.ROI_MASK_HEAD.CLS_AGNOSTIC_MASK = False
+ # Type of pooling operation applied to the incoming feature map for each RoI
+ _C.MODEL.ROI_MASK_HEAD.POOLER_TYPE = "ROIAlignV2"
+ 
+-
+ # ---------------------------------------------------------------------------- #
+ # Keypoint Head
+ # ---------------------------------------------------------------------------- #
+@@ -405,7 +399,6 @@ _C.MODEL.PANOPTIC_FPN.COMBINE.OVERLAP_THRESH = 0.5
+ _C.MODEL.PANOPTIC_FPN.COMBINE.STUFF_AREA_LIMIT = 4096
+ _C.MODEL.PANOPTIC_FPN.COMBINE.INSTANCES_CONFIDENCE_THRESH = 0.5
+ 
+-
+ # ---------------------------------------------------------------------------- #
+ # RetinaNet Head
+ # ---------------------------------------------------------------------------- #
+@@ -453,7 +446,6 @@ _C.MODEL.RETINANET.BBOX_REG_LOSS_TYPE = "smooth_l1"
+ # Only supports GN until unshared norm is implemented
+ _C.MODEL.RETINANET.NORM = ""
+ 
+-
+ # ---------------------------------------------------------------------------- #
+ # ResNe[X]t options (ResNets = {ResNet, ResNeXt}
+ # Note that parts of a resnet may be used for both the backbone and the head
+@@ -495,7 +487,6 @@ _C.MODEL.RESNETS.DEFORM_MODULATED = False
+ # Number of groups in deformable conv.
+ _C.MODEL.RESNETS.DEFORM_NUM_GROUPS = 1
+ 
+-
+ # ---------------------------------------------------------------------------- #
+ # Solver
+ # ---------------------------------------------------------------------------- #
+@@ -526,11 +517,11 @@ _C.SOLVER.WARMUP_ITERS = 1000
+ _C.SOLVER.WARMUP_METHOD = "linear"
+ 
+ # Save a checkpoint after every this number of iterations
+-_C.SOLVER.CHECKPOINT_PERIOD = 5000
++_C.SOLVER.CHECKPOINT_PERIOD = 500
+ 
+-# Number of images per batch across all machines.
+-# If we have 16 GPUs and IMS_PER_BATCH = 32,
+-# each GPU will see 2 images per batch.
++# Number of images per batch across all machines. This is also the number
++# of training images per step (i.e. per iteration). If we use 16 GPUs
++# and IMS_PER_BATCH = 32, each GPU will see 2 images per batch.
+ # May be adjusted automatically if REFERENCE_WORLD_SIZE is set.
+ _C.SOLVER.IMS_PER_BATCH = 16
+ 
+@@ -584,7 +575,7 @@ _C.TEST.EVAL_PERIOD = 0
+ _C.TEST.KEYPOINT_OKS_SIGMAS = []
+ # Maximum number of detections to return per image during inference (100 is
+ # based on the limit established for the COCO dataset).
+-_C.TEST.DETECTIONS_PER_IMAGE = 100
++_C.TEST.DETECTIONS_PER_IMAGE = num_boxes
+ 
+ _C.TEST.AUG = CN({"ENABLED": False})
+ _C.TEST.AUG.MIN_SIZES = (400, 500, 600, 700, 800, 900, 1000, 1100, 1200)
+diff --git a/detectron2/engine/defaults.py b/detectron2/engine/defaults.py
+index 33a996e..4be583c 100644
+--- a/detectron2/engine/defaults.py
++++ b/detectron2/engine/defaults.py
+@@ -14,10 +14,11 @@ import logging
+ import os
+ import sys
+ from collections import OrderedDict
++from typing import Optional
+ import torch
+ from fvcore.nn.precise_bn import get_bn_modules
+ from torch.nn.parallel import DistributedDataParallel
+-
++from utils.config import retrieve_gt_proposal_features
+ import detectron2.data.transforms as T
+ from detectron2.checkpoint import DetectionCheckpointer
+ from detectron2.data import (
+@@ -43,7 +44,13 @@ from detectron2.utils.logger import setup_logger
+ from . import hooks
+ from .train_loop import AMPTrainer, SimpleTrainer, TrainerBase
+ 
+-__all__ = ["default_argument_parser", "default_setup", "DefaultPredictor", "DefaultTrainer"]
++__all__ = [
++    "default_argument_parser",
++    "default_setup",
++    "default_writers",
++    "DefaultPredictor",
++    "DefaultTrainer",
++]
+ 
+ 
+ def default_argument_parser(epilog=None):
+@@ -157,6 +164,27 @@ def default_setup(cfg, args):
+         torch.backends.cudnn.benchmark = cfg.CUDNN_BENCHMARK
+ 
+ 
++def default_writers(output_dir: str, max_iter: Optional[int] = None):
++    """
++    Build a list of :class:`EventWriter` to be used.
++    It now consists of a :class:`CommonMetricPrinter`,
++    :class:`TensorboardXWriter` and :class:`JSONWriter`.
++
++    Args:
++        output_dir: directory to store JSON metrics and tensorboard events
++        max_iter: the total number of iterations
++
++    Returns:
++        list[EventWriter]: a list of :class:`EventWriter` objects.
++    """
++    return [
++        # It may not always print what you want to see, since it prints "common" metrics only.
++        CommonMetricPrinter(max_iter),
++        JSONWriter(os.path.join(output_dir, "metrics.json")),
++        TensorboardXWriter(output_dir),
++    ]
++
++
+ class DefaultPredictor:
+     """
+     Create a simple end-to-end predictor with the given config that runs on
+@@ -183,7 +211,7 @@ class DefaultPredictor:
+         outputs = pred(inputs)
+     """
+ 
+-    def __init__(self, cfg):
++    def __init__(self, cfg, use_only_gt=False):
+         self.cfg = cfg.clone()  # cfg can be modified by model
+         self.model = build_model(self.cfg)
+         self.model.eval()
+@@ -198,9 +226,10 @@ class DefaultPredictor:
+         )
+ 
+         self.input_format = cfg.INPUT.FORMAT
++        self.use_only_gt = use_only_gt
+         assert self.input_format in ["RGB", "BGR"], self.input_format
+ 
+-    def __call__(self, original_image):
++    def __call__(self, original_image, target):
+         """
+         Args:
+             original_image (np.ndarray): an image of shape (H, W, C) (in BGR order).
+@@ -216,11 +245,17 @@ class DefaultPredictor:
+                 # whether the model expects BGR inputs or RGB
+                 original_image = original_image[:, :, ::-1]
+             height, width = original_image.shape[:2]
+-            image = self.aug.get_transform(original_image).apply_image(original_image)
+-            image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1))
+-
+-            inputs = {"image": image, "height": height, "width": width}
+-            predictions = self.model([inputs])[0]
++            if not retrieve_gt_proposal_features:
++                image = self.aug.get_transform(original_image).apply_image(original_image)
++                image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1))
++            else:
++                image = torch.as_tensor(original_image.astype("float32").transpose(2, 0, 1))
++            inputs = {"image": image, "height": height, "width": width, "instances":target}
++            # TODO : Shivangi's change
++            if retrieve_gt_proposal_features:
++                predictions = self.model([inputs])
++            else:
++                predictions = self.model([inputs])[0]
+             return predictions
+ 
+ 
+@@ -368,46 +403,31 @@ class DefaultTrainer(TrainerBase):
+         if comm.is_main_process():
+             ret.append(hooks.PeriodicCheckpointer(self.checkpointer, cfg.SOLVER.CHECKPOINT_PERIOD))
+ 
+-        def test_and_save_results():
+-            self._last_eval_results = self.test(self.cfg, self.model)
+-            return self._last_eval_results
+-
+-        # Do evaluation after checkpointer, because then if it fails,
+-        # we can use the saved checkpoint to debug.
+-        ret.append(hooks.EvalHook(cfg.TEST.EVAL_PERIOD, test_and_save_results))
++        # Changes for COSMOS model: we don't need to save the predictions
++        # def test_and_save_results():
++        #     self._last_eval_results = self.test(self.cfg, self.model)
++        #     return self._last_eval_results
++        #
++        # # Do evaluation after checkpointer, because then if it fails,
++        # # we can use the saved checkpoint to debug.
++        # ret.append(hooks.EvalHook(cfg.TEST.EVAL_PERIOD, test_and_save_results))
+ 
+         if comm.is_main_process():
++            # Here the default print/log frequency of each writer is used.
+             # run writers in the end, so that evaluation metrics are written
+             ret.append(hooks.PeriodicWriter(self.build_writers(), period=20))
+         return ret
+ 
+     def build_writers(self):
+         """
+-        Build a list of writers to be used. By default it contains
+-        writers that write metrics to the screen,
+-        a json file, and a tensorboard event file respectively.
++        Build a list of writers to be used using :func:`default_writers()`.
+         If you'd like a different list of writers, you can overwrite it in
+         your trainer.
+ 
+         Returns:
+             list[EventWriter]: a list of :class:`EventWriter` objects.
+-
+-        It is now implemented by:
+-        ::
+-            return [
+-                CommonMetricPrinter(self.max_iter),
+-                JSONWriter(os.path.join(self.cfg.OUTPUT_DIR, "metrics.json")),
+-                TensorboardXWriter(self.cfg.OUTPUT_DIR),
+-            ]
+-
+         """
+-        # Here the default print/log frequency of each writer is used.
+-        return [
+-            # It may not always print what you want to see, since it prints "common" metrics only.
+-            CommonMetricPrinter(self.max_iter),
+-            JSONWriter(os.path.join(self.cfg.OUTPUT_DIR, "metrics.json")),
+-            TensorboardXWriter(self.cfg.OUTPUT_DIR),
+-        ]
++        return default_writers(self.cfg.OUTPUT_DIR, self.max_iter)
+ 
+     def train(self):
+         """
+diff --git a/detectron2/modeling/meta_arch/rcnn.py b/detectron2/modeling/meta_arch/rcnn.py
+index b01c362..13698c9 100644
+--- a/detectron2/modeling/meta_arch/rcnn.py
++++ b/detectron2/modeling/meta_arch/rcnn.py
+@@ -16,6 +16,7 @@ from ..postprocessing import detector_postprocess
+ from ..proposal_generator import build_proposal_generator
+ from ..roi_heads import build_roi_heads
+ from .build import META_ARCH_REGISTRY
++from utils.config import retrieve_gt_proposal_features
+ 
+ __all__ = ["GeneralizedRCNN", "ProposalNetwork"]
+ 
+@@ -58,7 +59,6 @@ class GeneralizedRCNN(nn.Module):
+         self.backbone = backbone
+         self.proposal_generator = proposal_generator
+         self.roi_heads = roi_heads
+-
+         self.input_format = input_format
+         self.vis_period = vis_period
+         if vis_period > 0:
+@@ -202,6 +202,15 @@ class GeneralizedRCNN(nn.Module):
+         images = self.preprocess_image(batched_inputs)
+         features = self.backbone(images.tensor)
+ 
++        # Changes for COSMOS model: Simply retrieve features corresponding to the given bounding boxes when `retrieve_gt_proposal_features` flag is True
++        if retrieve_gt_proposal_features:
++            assert "instances" in batched_inputs[0]
++            bboxes = [x["instances"].bboxes.to(self.device) for x in batched_inputs]
++            results = self.roi_heads._shared_roi_transform(
++                [features[f] for f in features.keys()], bboxes
++            )
++            return results
++
+         if detected_instances is None:
+             if self.proposal_generator is not None:
+                 proposals, _ = self.proposal_generator(images, features, None)
+@@ -214,11 +223,11 @@ class GeneralizedRCNN(nn.Module):
+             detected_instances = [x.to(self.device) for x in detected_instances]
+             results = self.roi_heads.forward_with_given_boxes(features, detected_instances)
+ 
+-        if do_postprocess:
+-            assert not torch.jit.is_scripting(), "Scripting is not supported for postprocess."
++        # Changes for COSMOS model: Return bbox coordinates when `retrieve_gt_proposal_features` flag is False
++        if do_postprocess and not retrieve_gt_proposal_features:
+             return GeneralizedRCNN._postprocess(results, batched_inputs, images.image_sizes)
+-        else:
+-            return results
++
++        return results
+ 
+     def preprocess_image(self, batched_inputs: Tuple[Dict[str, torch.Tensor]]):
+         """

@@ -1,11 +1,10 @@
 ## [COSMOS on Steroids: a Cheap Detector for Cheapfakes](https://github.com/acmmmsys/2021-grandchallenge-cheapfakes-cosmosonsteroids)
 
-COSMOS dataset consists of images and captions scraped from news articles and other websites designed for training and evaluation of out-of-context use of images. We refer readers to the paper below for more details. 
+COSMOS dataset consists of images and captions scraped from news articles and other websites designed for training and evaluation of out-of-context use of images. We refer the readers to the paper below for more details. 
 
 **Tankut Akgul, Tugce Erkilic Civelek, Deniz Ugur, and Ali C. Begen, "COSMOS on Steroids: a Cheap Detector for Cheapfakes," in ACM Multimedia Systems Conference (MMSys’21), Sept. 2021, Istanbul, Turkey (DOI: 10.1145/3458305. 3479968)**
 
 ## Getting started
-The code is well-documented and should be easy to follow.
 1. **Source Code:**   `$ git clone` this repo and install the Python dependencies from `requirements.txt`. The source code is implemented in PyTorch so familarity with PyTorch is expected.
 
 2. **Dataset:** Download the dataset by filling out the form [here](https://docs.google.com/forms/d/13kJQ2wlv7sxyXoaM1Ddon6Nq7dUJY_oftl-6xzwTGow). 

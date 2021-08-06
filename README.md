@@ -2,7 +2,7 @@
 
 COSMOS dataset consists of images and captions scraped from news articles and other websites designed for training and evaluation of out-of-context use of images. We refer readers to the paper below for more details. 
 
-[Tankut Akgul, Tugce Erkilic Civelek, Deniz Ugur, and Ali C. Begen, "COSMOS on Steroids: a Cheap Detector for Cheapfakes," in ACM Multimedia Systems Conference (MMSys’21), Sept. 2021, Istanbul, Turkey (DOI: 10.1145/3458305. 3479968)]
+**Tankut Akgul, Tugce Erkilic Civelek, Deniz Ugur, and Ali C. Begen, "COSMOS on Steroids: a Cheap Detector for Cheapfakes," in ACM Multimedia Systems Conference (MMSys’21), Sept. 2021, Istanbul, Turkey (DOI: 10.1145/3458305. 3479968)**
 
 ## Getting started
 The code is well-documented and should be easy to follow.

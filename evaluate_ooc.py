@@ -2,6 +2,7 @@
 
 import cv2
 import os
+import json
 from timeit import default_timer as dt
 from utils.config import *
 from utils.text_utils import get_text_metadata
@@ -173,17 +174,37 @@ def logger(state, context, v_data, iou, bbox_scores):
 if __name__ == "__main__":
     """ Main function to compute out-of-context detection accuracy"""
 
+    if (not torch.cuda.is_available()):
+        print("A GPU is required for the model to run")
+
     test_samples = read_json_data(os.path.join(DATA_DIR, 'annotations', 'test_data.json'))
     ours_correct = 0
     lang_correct = 0
     compare_flag = os.getenv("COSMOS_COMPARE") is not None
     duration = 0
+    metrics = {
+        "TP": 0,
+        "TN": 0,
+        "FP": 0,
+        "FN": 0,
+    }
 
     start = dt()
     for i, v_data in enumerate(test_samples):
         actual_context = int(v_data['context_label'])
         language_context = 0 if float(v_data['bert_base_score']) >= textual_sim_threshold else 1
         iou, _, _, pred_context = evaluate_context_with_bbox_overlap(v_data)
+
+        if actual_context == 1:
+            if actual_context == pred_context:
+                metrics["TP"] += 1
+            else:
+                metrics["FN"] += 1
+        else:
+            if actual_context == pred_context:
+                metrics["TN"] += 1
+            else:
+                metrics["FP"] += 1
 
         if compare_flag:
             pred_context_original, bbox_scores = evaluate_context_with_bbox_overlap_original(v_data)
@@ -203,6 +224,10 @@ if __name__ == "__main__":
         if language_context == actual_context:
             lang_correct += 1
 
+    with open("/tmp/metrics.json", "w") as fp:
+        json.dump(metrics, fp)
+
+    print("\n")
     print("Cosmos on Steroids Accuracy", ours_correct / len(test_samples))
     print(f"Cosmos on Steroids Inference Latency {(dt() - start) / len(test_samples):.6f} seconds")
     print("Language Baseline Accuracy", lang_correct / len(test_samples))
